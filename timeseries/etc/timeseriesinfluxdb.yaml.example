@@ -1,0 +1,16 @@
+
+timeseriesinfluxdb:
+    server:
+        updates:
+            logging:
+                loggers:
+                    opsview:
+                        level: INFO
+        queries:
+            logging:
+                loggers:
+                    opsview:
+                        level: INFO
+    influxdb:
+        server: http://1.2.3.4:8086
+        retention_policy: autogen

@@ -1,0 +1,30 @@
+
+timeseriesinfluxdb:
+    server:
+        user: username
+        password: password
+        updates:
+            host: 127.0.0.1
+            workers:
+                - port: 1640
+                - port: 1641
+                - port: 1642
+                - port: 1643
+            logging:
+                loggers:
+                    opsview:
+                        level: NOTICE
+        queries:
+            host: 127.0.0.1
+            port: 1660
+            logging:
+                loggers:
+                    opsview:
+                        level: NOTICE
+    data_dir: ./var
+    influxdb:
+        server: http://localhost:8086
+        user:
+        password:
+        database: opsview
+        retention_policy: default
