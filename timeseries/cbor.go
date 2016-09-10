@@ -50,14 +50,14 @@ func (this *TimeseriesServer) DecodeCbor(raw io.Reader) (ts []TimeSeries, fail e
 		for sc, t_data := range sc_data {
 			for timestamp, data := range t_data {
 
-				epoch, err := strconv.ParseInt(string(timestamp), 10, 64)
+				epoch, err := strconv.ParseInt(timestamp, 10, 64)
 				if err != nil {
 					continue
 				}
 
 				var item = TimeSeries{
-					Host:      string(host),
-					Service:   string(sc),
+					Host:      host,
+					Service:   sc,
 					Timestamp: time.Unix(epoch, 0),
 					Data:      make([]TimeSeriesData, 0, 200),
 				}
@@ -68,16 +68,16 @@ func (this *TimeseriesServer) DecodeCbor(raw io.Reader) (ts []TimeSeries, fail e
 				values := strings.Split(data[3], ":")
 
 				for i := 0; i < len(metrics); i++ {
-					val, err := strconv.ParseFloat(string(values[i]), 64)
+					val, err := strconv.ParseFloat(values[i], 64)
 					if err != nil {
 						continue
 					}
 
 					item.Data = append(item.Data,
 						TimeSeriesData{
-							Metric: string(metrics[i]),
-							Dstype: string(dstypes[i]),
-							Uom:    string(uoms[i]),
+							Metric: metrics[i],
+							Dstype: dstypes[i],
+							Uom:    uoms[i],
 							Value:  val,
 						},
 					)
