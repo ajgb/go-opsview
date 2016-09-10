@@ -1,4 +1,4 @@
-
+---
 timeseriesinfluxdb:
     server:
         user: username

@@ -1,16 +1,19 @@
-
+---
 timeseriesinfluxdb:
     server:
         updates:
+            host: 0.0.0.0
             logging:
                 loggers:
                     opsview:
                         level: INFO
         queries:
+            host: 0.0.0.0
             logging:
                 loggers:
                     opsview:
                         level: INFO
+    data_dir: ./var
     influxdb:
         server: http://1.2.3.4:8086
         retention_policy: autogen
