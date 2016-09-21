@@ -161,7 +161,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		case "DERIVE":
 			column = fmt.Sprintf("DERIVATIVE(MEAN(%s))", hsm.Metric)
 		default: //case "GAUGE":
-			column = fmt.Sprintf("MEAN(%s)", hsm.Metric)
+			column = fmt.Sprintf("MEAN(%s) * %d", hsm.Metric, uomMultiplier)
 		}
 
 		sql := fmt.Sprintf(
