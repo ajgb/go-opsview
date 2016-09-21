@@ -13,7 +13,7 @@ const (
 
 type uomConversion struct {
 	uom        string
-	multiplier int
+	multiplier int64
 }
 
 var uom_conversion map[string]uomConversion
@@ -74,7 +74,7 @@ func init() {
 	}
 }
 
-func ConvertUom(uom string) (new_uom string, multiplier int) {
+func ConvertUom(uom string) (new_uom string, multiplier int64) {
 	new_uom = uom
 	multiplier = 1
 	if v, ok := uom_mapping[uom]; ok {
