@@ -3,6 +3,7 @@ package timeseries
 import (
 	"database/sql"
 	_ "github.com/mattn/go-sqlite3"
+	"net/url"
 	"path/filepath"
 )
 
@@ -34,7 +35,25 @@ func (this *TimeseriesServer) updateMetadata() {
 			rollback := false
 
 			for _, i := range data {
-				_, err := stmt.Exec(i[0], i[1], i[2], i[3], i[4])
+				host, err := url.QueryUnescape(i[0])
+				if err != nil {
+					this.log.Warning("Failed to unescape host: %s\n", err)
+					continue
+				}
+
+				service, err := url.QueryUnescape(i[1])
+				if err != nil {
+					this.log.Warning("Failed to unescape service: %s\n", err)
+					continue
+				}
+
+				metric, err := url.QueryUnescape(i[2])
+				if err != nil {
+					this.log.Warning("Failed to unescape metric: %s\n", err)
+					continue
+				}
+
+				_, err := stmt.Exec(host, service, metric, i[3], i[4])
 				if err != nil {
 					this.log.Error("Failed to add entry to metadata database: %s\n", err)
 					rollback = true
