@@ -53,9 +53,9 @@ func (this *TimeseriesServer) updateMetadata() {
 					continue
 				}
 
-				_, err := stmt.Exec(host, service, metric, i[3], i[4])
-				if err != nil {
-					this.log.Error("Failed to add entry to metadata database: %s\n", err)
+				_, exErr := stmt.Exec(host, service, metric, i[3], i[4])
+				if exErr != nil {
+					this.log.Error("Failed to add entry to metadata database: %s\n", exErr)
 					rollback = true
 					break
 				}
