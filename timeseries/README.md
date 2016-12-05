@@ -19,7 +19,7 @@ make
 
 ## Configure
 ```
-curl -i -XPOST http://1.2.3.4:8086/query --data-urlencode "q=CREATE DATABASE opsview"
+curl -i -XPOST http://127.0.0.1:8086/query --data-urlencode "q=CREATE DATABASE opsview"
 cp etc/timeseriesinfluxdb.yaml.example etc/timeseriesinfluxdb.yaml
 vim etc/timeseriesinfluxdb.yaml
 
