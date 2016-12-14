@@ -13,7 +13,7 @@ const (
 
 type uomConversion struct {
 	uom        string
-	multiplier int64
+	multiplier float64
 }
 
 var uom_conversion map[string]uomConversion
@@ -47,11 +47,11 @@ func init() {
 		},
 		"ms": uomConversion{
 			uom:        "seconds",
-			multiplier: 1 / 1000,
+			multiplier: 1.0 / 1000.0,
 		},
 		"us": uomConversion{
 			uom:        "seconds",
-			multiplier: 1 / 1000000,
+			multiplier: 1.0 / 1000000.0,
 		},
 		"%": uomConversion{
 			uom:        "percent",
@@ -74,7 +74,7 @@ func init() {
 	}
 }
 
-func ConvertUom(uom string) (new_uom string, multiplier int64) {
+func ConvertUom(uom string) (new_uom string, multiplier float64) {
 	new_uom = uom
 	multiplier = 1
 	if v, ok := uom_mapping[uom]; ok {

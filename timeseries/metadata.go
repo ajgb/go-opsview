@@ -146,7 +146,7 @@ func (this *TimeseriesServer) ListHSM2U() (metatadaMapH2S, error) {
 	return metadbMap, nil
 }
 
-func (this *TimeseriesServer) GetHSMsetup(host, service, metric string) (string, string, int64, error) {
+func (this *TimeseriesServer) GetHSMsetup(host, service, metric string) (string, string, float64, error) {
 	var dstype, uom string
 	err := this.metadb.QueryRow("SELECT dstype, uom FROM uoms WHERE host = ? AND service = ? AND metric = ?", host, service, metric).Scan(&dstype, &uom)
 	if err != nil {

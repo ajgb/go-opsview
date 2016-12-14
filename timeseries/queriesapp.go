@@ -161,12 +161,12 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		case "DERIVE":
 			column = fmt.Sprintf("DERIVATIVE(MEAN(%s))", hsm.Metric)
 		default: //case "GAUGE":
-			column = fmt.Sprintf("MEAN(%s) * %d", hsm.Metric, uomMultiplier)
+			column = fmt.Sprintf("MEAN(%s) * %f", hsm.Metric, uomMultiplier)
 		}
 
 		sql := fmt.Sprintf(
 			"SELECT %s FROM %s.\"%s.%s\" WHERE time > %ds AND time < %ds GROUP BY time(%s) fill(null); "+
-				"SELECT MIN(%[8]s), MAX(%[8]s), MEAN(%[8]s), STDDEV(%[8]s), PERCENTILE(%[8]s, 95)  FROM %[2]s.\"%[3]s.%[4]s\" WHERE time > %[5]ds AND time < %[6]ds",
+				"SELECT MIN(%[8]s) * %[9]f, MAX(%[8]s) * %[9]f, MEAN(%[8]s) * %[9]f, STDDEV(%[8]s) * %[9]f, PERCENTILE(%[8]s, 95) * %[9]f FROM %[2]s.\"%[3]s.%[4]s\" WHERE time > %[5]ds AND time < %[6]ds",
 			column,
 			dbRp,
 			hsm.eHost,
@@ -175,8 +175,9 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			qsParams.endEpoch,
 			CalculateTimeSlotSize(500, qsParams.startEpoch, qsParams.endEpoch),
 			hsm.Metric,
+			uomMultiplier,
 		)
-		this.log.Debug("dstype(%s) uomLabel(%s) uomMultiplier(%d)\n", dstype, uomLabel, uomMultiplier)
+		this.log.Debug("dstype(%s) uomLabel(%s) uomMultiplier(%f)\n", dstype, uomLabel, uomMultiplier)
 		this.log.Debug("sql(%s)\n", sql)
 
 		q := client.Query{
