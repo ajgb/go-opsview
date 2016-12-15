@@ -17,6 +17,8 @@ type QueryParamsHSM struct {
 	HSM, Host, eHost, Service, eService, Metric, eMetric string
 }
 type QueryParams struct {
+	dataPoints      int64
+	fillOption      string
 	startEpoch      int64
 	endEpoch        int64
 	includeTzOffset bool
@@ -109,6 +111,32 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		return nil, errors.New(fmt.Sprintf("Missing parameter: hsm"))
 	}
 
+	dataPoints := query.Get("datapoints")
+	if dataPoints == "" {
+		qsParams.fillOption = this.config.InfluxDB.DataPoints
+	} else {
+		if i, err := strconv.ParseInt(dataPoints, 10, 64); err != nil {
+			return nil, errors.New(fmt.Sprintf("Invalid parameter: datapoints"))
+		} else {
+			qsParams.dataPoints = i
+		}
+	}
+
+	fillOption := query.Get("fill_option")
+	if fillOption == "linear" || fillOption == "none" || fillOption == "null" || fillOption == "previous" {
+		qsParams.fillOption = fillOption
+	} else {
+		if fillOption == "" {
+			qsParams.fillOption = this.config.InfluxDB.FillOption
+		} else {
+			if i, err := strconv.ParseInt(fillOption, 10, 64); err != nil {
+				return nil, errors.New(fmt.Sprintf("Invalid parameter: fill"))
+			} else {
+				qsParams.fillOption = fillOption
+			}
+		}
+	}
+
 	return qsParams, nil
 }
 
@@ -165,15 +193,16 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		}
 
 		sql := fmt.Sprintf(
-			"SELECT %s FROM %s.\"%s.%s\" WHERE time > %ds AND time < %ds GROUP BY time(%s) fill(null); "+
-				"SELECT MIN(%[8]s) * %[9]f, MAX(%[8]s) * %[9]f, MEAN(%[8]s) * %[9]f, STDDEV(%[8]s) * %[9]f, PERCENTILE(%[8]s, 95) * %[9]f FROM %[2]s.\"%[3]s.%[4]s\" WHERE time > %[5]ds AND time < %[6]ds",
+			"SELECT %s FROM %s.\"%s.%s\" WHERE time > %ds AND time < %ds GROUP BY time(%s) fill(%s); "+
+				"SELECT MIN(%[9]s) * %[10]f, MAX(%[9]s) * %[10]f, MEAN(%[9]s) * %[10]f, STDDEV(%[9]s) * %[10]f, PERCENTILE(%[9]s, 95) * %[10]f FROM %[2]s.\"%[3]s.%[4]s\" WHERE time > %[5]ds AND time < %[6]ds",
 			column,
 			dbRp,
 			hsm.eHost,
 			hsm.eService,
 			qsParams.startEpoch,
 			qsParams.endEpoch,
-			CalculateTimeSlotSize(500, qsParams.startEpoch, qsParams.endEpoch),
+			CalculateTimeSlotSize(qsParams.DataPoints, qsParams.startEpoch, qsParams.endEpoch),
+			qsParams.FillOption,
 			hsm.Metric,
 			uomMultiplier,
 		)

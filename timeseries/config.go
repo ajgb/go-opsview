@@ -14,6 +14,8 @@ type TimeseriesInfluxDBConfig struct {
 	Password        string
 	Database        string
 	RetentionPolicy string
+	FillOption      string
+	DataPoints      int64
 }
 
 type TimeseriesServerUpdatesConfig struct {
@@ -87,6 +89,20 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 	if v, err := data.String("timeseriesinfluxdb.influxdb.retention_policy"); err == nil {
 		this.InfluxDB.RetentionPolicy = v
 	}
+	if v, err := data.String("timeseriesinfluxdb.influxdb.fill_option"); err == nil {
+		if v == "linear" || v == "none" || v == "null" || v == "previous" {
+			this.InfluxDB.FillOption = v
+		} else {
+			if v != "" {
+				if i, err := strconv.ParseInt(v, 10, 64); err == nil {
+					this.InfluxDB.FillOption = v
+				}
+			}
+		}
+	}
+	if v, err := data.Int("timeseriesinfluxdb.influxdb.data_points"); err == nil {
+		this.InfluxDB.DataPoints = int64(v)
+	}
 	if v, err := data.String("timeseriesinfluxdb.server.updates.logging.loggers.opsview.level"); err == nil {
 		this.Server.Updates.LogLevel = v
 	}
@@ -158,6 +174,8 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 			Password:        "",
 			Database:        "opsview",
 			RetentionPolicy: "default",
+			FillOption:      "none",
+			DataPoints:      500,
 		},
 	}
 	if err := conf.extractSettings(dconf); err != nil {

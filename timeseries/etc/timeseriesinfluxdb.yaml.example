@@ -17,3 +17,5 @@ timeseriesinfluxdb:
     influxdb:
         server: http://1.2.3.4:8086
         retention_policy: autogen
+        data_points: 500
+        fill_option: none
