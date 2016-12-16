@@ -17,6 +17,9 @@ timeseriesinfluxdb:
         queries:
             host: 127.0.0.1
             port: 1660
+            default_parameters:
+                data_points: 500
+                fill_option: none
             logging:
                 loggers:
                     opsview:
@@ -28,5 +31,3 @@ timeseriesinfluxdb:
         password:
         database: opsview
         retention_policy: default
-        data_points: 500
-        fill_option: none

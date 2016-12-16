@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"path"
+	"strconv"
 )
 
 type TimeseriesInfluxDBConfig struct {
@@ -14,8 +15,6 @@ type TimeseriesInfluxDBConfig struct {
 	Password        string
 	Database        string
 	RetentionPolicy string
-	FillOption      string
-	DataPoints      int64
 }
 
 type TimeseriesServerUpdatesConfig struct {
@@ -31,6 +30,8 @@ type TimeseriesServerQueriesConfig struct {
 	Port        int
 	LogLevel    string
 	LogFacility string
+	FillOption  string
+	DataPoints  int64
 }
 
 type TimeseriesServerConfig struct {
@@ -89,19 +90,19 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 	if v, err := data.String("timeseriesinfluxdb.influxdb.retention_policy"); err == nil {
 		this.InfluxDB.RetentionPolicy = v
 	}
-	if v, err := data.String("timeseriesinfluxdb.influxdb.fill_option"); err == nil {
+	if v, err := data.String("timeseriesinfluxdb.server.queries.default_parameters.fill_option"); err == nil {
 		if v == "linear" || v == "none" || v == "null" || v == "previous" {
-			this.InfluxDB.FillOption = v
+			this.Server.Queries.FillOption = v
 		} else {
 			if v != "" {
-				if i, err := strconv.ParseInt(v, 10, 64); err == nil {
-					this.InfluxDB.FillOption = v
+				if _, err := strconv.ParseInt(v, 10, 64); err == nil {
+					this.Server.Queries.FillOption = v
 				}
 			}
 		}
 	}
-	if v, err := data.Int("timeseriesinfluxdb.influxdb.data_points"); err == nil {
-		this.InfluxDB.DataPoints = int64(v)
+	if v, err := data.Int("timeseriesinfluxdb.server.queries.default_parameters.data_points"); err == nil {
+		this.Server.Queries.DataPoints = int64(v)
 	}
 	if v, err := data.String("timeseriesinfluxdb.server.updates.logging.loggers.opsview.level"); err == nil {
 		this.Server.Updates.LogLevel = v
@@ -166,6 +167,8 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 				Port:        1660,
 				LogLevel:    DefaultLogLevel,
 				LogFacility: DefaultLogFacility,
+				FillOption:  "none",
+				DataPoints:  500,
 			},
 		},
 		DataDir: "/opt/opsview/timeseriesinfluxdb/var/data",
@@ -174,8 +177,6 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 			Password:        "",
 			Database:        "opsview",
 			RetentionPolicy: "default",
-			FillOption:      "none",
-			DataPoints:      500,
 		},
 	}
 	if err := conf.extractSettings(dconf); err != nil {

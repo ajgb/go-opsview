@@ -111,9 +111,9 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		return nil, errors.New(fmt.Sprintf("Missing parameter: hsm"))
 	}
 
-	dataPoints := query.Get("datapoints")
+	dataPoints := query.Get("data_points")
 	if dataPoints == "" {
-		qsParams.fillOption = this.config.InfluxDB.DataPoints
+		qsParams.dataPoints = this.config.Server.Queries.DataPoints
 	} else {
 		if i, err := strconv.ParseInt(dataPoints, 10, 64); err != nil {
 			return nil, errors.New(fmt.Sprintf("Invalid parameter: datapoints"))
@@ -127,10 +127,10 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		qsParams.fillOption = fillOption
 	} else {
 		if fillOption == "" {
-			qsParams.fillOption = this.config.InfluxDB.FillOption
+			qsParams.fillOption = this.config.Server.Queries.FillOption
 		} else {
-			if i, err := strconv.ParseInt(fillOption, 10, 64); err != nil {
-				return nil, errors.New(fmt.Sprintf("Invalid parameter: fill"))
+			if _, err := strconv.ParseInt(fillOption, 10, 64); err != nil {
+				return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", fillOption))
 			} else {
 				qsParams.fillOption = fillOption
 			}
@@ -201,8 +201,8 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			hsm.eService,
 			qsParams.startEpoch,
 			qsParams.endEpoch,
-			CalculateTimeSlotSize(qsParams.DataPoints, qsParams.startEpoch, qsParams.endEpoch),
-			qsParams.FillOption,
+			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch),
+			qsParams.fillOption,
 			hsm.Metric,
 			uomMultiplier,
 		)
