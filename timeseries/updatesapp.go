@@ -1,8 +1,8 @@
 package timeseries
 
 import (
-	"fmt"
 	"github.com/influxdata/influxdb/client/v2"
+	//"github.com/influxdata/influxdb/models"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
 )
@@ -32,8 +32,9 @@ func (this *TimeseriesServer) WriteHandler(w http.ResponseWriter, r *http.Reques
 	defer db.Close()
 
 	bp, err := client.NewBatchPoints(client.BatchPointsConfig{
-		Database:  this.config.InfluxDB.Database,
-		Precision: "s",
+		Database:        this.config.InfluxDB.Database,
+		RetentionPolicy: this.config.InfluxDB.RetentionPolicy,
+		Precision:       "s",
 	})
 
 	if err != nil {
@@ -44,11 +45,12 @@ func (this *TimeseriesServer) WriteHandler(w http.ResponseWriter, r *http.Reques
 	metadata := make([][5]string, 0, len(ts)*this.config.Server.Updates.ExpectedResultsCount)
 
 	for _, hs := range ts {
-		tags := make(map[string]string)
-		fields := make(map[string]interface{})
-
 		for _, data := range hs.Data {
-			fields[data.Metric] = data.Value
+			tags := map[string]string{
+				"service": hs.Service,
+				"metric":  data.Metric,
+			}
+			fields := map[string]interface{}{"value": data.Value}
 
 			metadata = append(metadata,
 				[5]string{
@@ -58,14 +60,15 @@ func (this *TimeseriesServer) WriteHandler(w http.ResponseWriter, r *http.Reques
 					data.Dstype,
 					data.Uom,
 				})
+
+			pt, _ := client.NewPoint(
+				hs.Host,
+				tags,
+				fields,
+				hs.Timestamp,
+			)
+			bp.AddPoint(pt)
 		}
-		pt, _ := client.NewPoint(
-			fmt.Sprintf("%s.%s", hs.Host, hs.Service),
-			tags,
-			fields,
-			hs.Timestamp,
-		)
-		bp.AddPoint(pt)
 	}
 
 	if err := db.Write(bp); err != nil {

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/ugorji/go/codec"
 	"io"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -12,17 +13,20 @@ import (
 type TimeSeriesRequest map[string]map[string]map[string][4]string
 
 type TimeSeriesData struct {
-	Metric string
-	Dstype string
-	Uom    string
-	Value  float64
+	MetricEscaped string
+	Metric        string
+	Dstype        string
+	Uom           string
+	Value         float64
 }
 
 type TimeSeries struct {
-	Host      string
-	Service   string
-	Timestamp time.Time
-	Data      []TimeSeriesData
+	HostEscaped    string
+	ServiceEscaped string
+	Host           string
+	Service        string
+	Timestamp      time.Time
+	Data           []TimeSeriesData
 }
 
 func (this *TimeseriesServer) DecodeCbor(raw io.Reader) (ts []TimeSeries, fail error) {
@@ -46,20 +50,30 @@ func (this *TimeseriesServer) DecodeCbor(raw io.Reader) (ts []TimeSeries, fail e
 
 	ts = make([]TimeSeries, 0, this.config.Server.Updates.ExpectedResultsCount)
 
-	for host, sc_data := range ts_data {
-		for sc, t_data := range sc_data {
+	for host_escaped, sc_data := range ts_data {
+		for sc_escaped, t_data := range sc_data {
 			for timestamp, data := range t_data {
-
 				epoch, err := strconv.ParseInt(timestamp, 10, 64)
 				if err != nil {
 					continue
 				}
 
+				host, err := url.QueryUnescape(host_escaped)
+				if err != nil {
+					continue
+				}
+
+				sc, err := url.QueryUnescape(sc_escaped)
+				if err != nil {
+					continue
+				}
 				var item = TimeSeries{
-					Host:      host,
-					Service:   sc,
-					Timestamp: time.Unix(epoch, 0),
-					Data:      make([]TimeSeriesData, 0, 200),
+					HostEscaped:    host_escaped,
+					Host:           host,
+					ServiceEscaped: sc_escaped,
+					Service:        sc,
+					Timestamp:      time.Unix(epoch, 0),
+					Data:           make([]TimeSeriesData, 0, 200),
 				}
 
 				metrics := strings.Split(data[0], ":")
@@ -73,12 +87,18 @@ func (this *TimeseriesServer) DecodeCbor(raw io.Reader) (ts []TimeSeries, fail e
 						continue
 					}
 
+					metric, err := url.QueryUnescape(metrics[i])
+					if err != nil {
+						continue
+					}
+
 					item.Data = append(item.Data,
 						TimeSeriesData{
-							Metric: metrics[i],
-							Dstype: dstypes[i],
-							Uom:    uoms[i],
-							Value:  val,
+							MetricEscaped: metrics[i],
+							Metric:        metric,
+							Dstype:        dstypes[i],
+							Uom:           uoms[i],
+							Value:         val,
 						},
 					)
 				}
