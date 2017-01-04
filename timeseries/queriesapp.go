@@ -185,25 +185,25 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		}
 		switch dstype {
 		case "COUNTER":
-			column = fmt.Sprintf("COUNT(%s)", hsm.Metric)
+			column = "COUNT(value)"
 		case "DERIVE":
-			column = fmt.Sprintf("DERIVATIVE(MEAN(%s))", hsm.Metric)
+			column = "DERIVATIVE(MEAN(value))"
 		default: //case "GAUGE":
-			column = fmt.Sprintf("MEAN(%s) * %f", hsm.Metric, uomMultiplier)
+			column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
 		}
 
 		sql := fmt.Sprintf(
-			"SELECT %s FROM %s.\"%s.%s\" WHERE time > %ds AND time < %ds GROUP BY time(%s) fill(%s); "+
-				"SELECT MIN(%[9]s) * %[10]f, MAX(%[9]s) * %[10]f, MEAN(%[9]s) * %[10]f, STDDEV(%[9]s) * %[10]f, PERCENTILE(%[9]s, 95) * %[10]f FROM %[2]s.\"%[3]s.%[4]s\" WHERE time > %[5]ds AND time < %[6]ds",
+			"SELECT %s FROM %s.\"%s\" WHERE service = '%s' AND metric = '%s' AND time > %ds AND time < %ds GROUP BY time(%s) fill(%s); "+
+            "SELECT MIN(value) * %[10]f, MAX(value) * %[10]f, MEAN(value) * %[10]f, STDDEV(value) * %[10]f, PERCENTILE(value, 95) * %[10]f FROM %[2]s.\"%[3]s\" WHERE service = '%[4]s' AND metric = '%[5]s' AND time > %[6]ds AND time < %[7]ds",
 			column,
 			dbRp,
 			hsm.eHost,
-			hsm.eService,
+			hsm.Service,
+			hsm.Metric,
 			qsParams.startEpoch,
 			qsParams.endEpoch,
 			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch),
 			qsParams.fillOption,
-			hsm.Metric,
 			uomMultiplier,
 		)
 		this.log.Debug("dstype(%s) uomLabel(%s) uomMultiplier(%f)\n", dstype, uomLabel, uomMultiplier)
