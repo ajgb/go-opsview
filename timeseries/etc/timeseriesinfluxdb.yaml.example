@@ -9,13 +9,15 @@ timeseriesinfluxdb:
                         level: INFO
         queries:
             host: 0.0.0.0
+            default_parameters:
+                data_points: 500
+                fill_option: "null"
+                min_time_slot: 300
             logging:
                 loggers:
                     opsview:
                         level: INFO
     data_dir: ./var
     influxdb:
-        server: http://1.2.3.4:8086
+        server: http://127.0.0.1:8086
         retention_policy: autogen
-        data_points: 500
-        fill_option: none

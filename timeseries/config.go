@@ -26,12 +26,14 @@ type TimeseriesServerUpdatesConfig struct {
 }
 
 type TimeseriesServerQueriesConfig struct {
-	Host        string
-	Port        int
-	LogLevel    string
-	LogFacility string
-	FillOption  string
-	DataPoints  int64
+	Host          string
+	Port          int
+	LogLevel      string
+	LogFacility   string
+	FillOption    string
+	DataPoints    int64
+	MinTimeSlot   int64
+	FixedTimeSlot int64
 }
 
 type TimeseriesServerConfig struct {
@@ -104,6 +106,12 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 	if v, err := data.Int("timeseriesinfluxdb.server.queries.default_parameters.data_points"); err == nil {
 		this.Server.Queries.DataPoints = int64(v)
 	}
+	if v, err := data.Int("timeseriesinfluxdb.server.queries.default_parameters.min_time_slot"); err == nil {
+		this.Server.Queries.MinTimeSlot = int64(v)
+	}
+	if v, err := data.Int("timeseriesinfluxdb.server.queries.default_parameters.fixed_time_slot"); err == nil {
+		this.Server.Queries.FixedTimeSlot = int64(v)
+	}
 	if v, err := data.String("timeseriesinfluxdb.server.updates.logging.loggers.opsview.level"); err == nil {
 		this.Server.Updates.LogLevel = v
 	}
@@ -163,12 +171,14 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 				LogFacility:          DefaultLogFacility,
 			},
 			Queries: TimeseriesServerQueriesConfig{
-				Host:        "127.0.0.1",
-				Port:        1660,
-				LogLevel:    DefaultLogLevel,
-				LogFacility: DefaultLogFacility,
-				FillOption:  "none",
-				DataPoints:  500,
+				Host:          "127.0.0.1",
+				Port:          1660,
+				LogLevel:      DefaultLogLevel,
+				LogFacility:   DefaultLogFacility,
+				FillOption:    "null",
+				DataPoints:    500,
+				MinTimeSlot:   0,
+				FixedTimeSlot: 0,
 			},
 		},
 		DataDir: "/opt/opsview/timeseriesinfluxdb/var/data",

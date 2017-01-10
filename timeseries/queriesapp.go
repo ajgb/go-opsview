@@ -18,6 +18,8 @@ type QueryParamsHSM struct {
 }
 type QueryParams struct {
 	dataPoints      int64
+	minTimeSlot     int64
+	fixedTimeSlot   int64
 	fillOption      string
 	startEpoch      int64
 	endEpoch        int64
@@ -116,9 +118,31 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		qsParams.dataPoints = this.config.Server.Queries.DataPoints
 	} else {
 		if i, err := strconv.ParseInt(dataPoints, 10, 64); err != nil {
-			return nil, errors.New(fmt.Sprintf("Invalid parameter: datapoints"))
+			return nil, errors.New(fmt.Sprintf("Invalid parameter: data_points"))
 		} else {
 			qsParams.dataPoints = i
+		}
+	}
+
+	minTimeSlot := query.Get("min_time_slot")
+	if minTimeSlot == "" {
+		qsParams.minTimeSlot = this.config.Server.Queries.MinTimeSlot
+	} else {
+		if i, err := strconv.ParseInt(minTimeSlot, 10, 64); err != nil {
+			return nil, errors.New(fmt.Sprintf("Invalid parameter: min_time_slot"))
+		} else {
+			qsParams.minTimeSlot = i
+		}
+	}
+
+	fixedTimeSlot := query.Get("fixed_time_slot")
+	if fixedTimeSlot == "" {
+		qsParams.fixedTimeSlot = this.config.Server.Queries.FixedTimeSlot
+	} else {
+		if i, err := strconv.ParseInt(fixedTimeSlot, 10, 64); err != nil {
+			return nil, errors.New(fmt.Sprintf("Invalid parameter: fixed_time_slot"))
+		} else {
+			qsParams.fixedTimeSlot = i
 		}
 	}
 
@@ -202,7 +226,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			hsm.Metric,
 			qsParams.startEpoch,
 			qsParams.endEpoch,
-			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch),
+			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch, qsParams.minTimeSlot, qsParams.fixedTimeSlot),
 			qsParams.fillOption,
 			uomMultiplier,
 		)

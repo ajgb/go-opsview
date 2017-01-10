@@ -87,10 +87,19 @@ func ConvertUom(uom string) (new_uom string, multiplier float64) {
 	return
 }
 
-func CalculateTimeSlotSize(datapoints int64, startEpoch int64, endEpoch int64) string {
+func CalculateTimeSlotSize(datapoints int64, startEpoch int64, endEpoch int64, minSlotSize int64, fixedSlotSize int64) string {
 	timeDiff := endEpoch - startEpoch
 	if timeDiff > datapoints {
 		slotSizeSec := float64(timeDiff) / float64(datapoints)
+		if fixedSlotSize > 0 {
+			slotSizeSec = fixedSlotSize
+		}
+		if slotSizeSec < minSlotSize {
+			slotSizeSec = minSlotSize
+		}
+		if slotSizeSec < 1 {
+			slotSizeSec = 1
+		}
 		switch {
 		case slotSizeSec < MINUTE:
 			return fmt.Sprintf("%ds", int(slotSizeSec))

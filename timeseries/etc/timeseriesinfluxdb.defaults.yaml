@@ -20,6 +20,7 @@ timeseriesinfluxdb:
             default_parameters:
                 data_points: 500
                 fill_option: none
+                min_time_slot: 300
             logging:
                 loggers:
                     opsview:
