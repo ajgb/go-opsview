@@ -226,7 +226,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			hsm.Metric,
 			qsParams.startEpoch,
 			qsParams.endEpoch,
-			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch, qsParams.minTimeSlot, qsParams.fixedTimeSlot),
+			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch, float64(qsParams.minTimeSlot), float64(qsParams.fixedTimeSlot)),
 			qsParams.fillOption,
 			uomMultiplier,
 		)
