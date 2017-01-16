@@ -207,11 +207,12 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			this.sendHTTPError(w, http.StatusInternalServerError, "Failed to query metadata information: %s", err)
 			return
 		}
+
 		switch dstype {
 		case "COUNTER":
-			column = "COUNT(value)"
+			column = "DIFFERENCE(MEAN(value))"
 		case "DERIVE":
-			column = "DERIVATIVE(MEAN(value))"
+			column = "DIFFERENCE(MEAN(value))"
 		default: //case "GAUGE":
 			column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
 		}
