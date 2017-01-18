@@ -17,14 +17,15 @@ type QueryParamsHSM struct {
 	HSM, Host, eHost, Service, eService, Metric, eMetric string
 }
 type QueryParams struct {
-	dataPoints      int64
-	minTimeSlot     int64
-	fixedTimeSlot   int64
-	fillOption      string
-	startEpoch      int64
-	endEpoch        int64
-	includeTzOffset bool
-	HSMs            []QueryParamsHSM
+	dataPoints         int64
+	minTimeSlot        int64
+	fixedTimeSlot      int64
+	fillOption         string
+	counterMetricsMode string
+	startEpoch         int64
+	endEpoch           int64
+	includeTzOffset    bool
+	HSMs               []QueryParamsHSM
 }
 type QueryResultDataStats struct {
 	Min    interface{} `json:"min"`
@@ -161,6 +162,11 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		}
 	}
 
+	counterMetricsMode := query.Get("counter_metrics_mode")
+	if counterMetricsMode == "difference" || counterMetricsMode == "per_second" {
+		qsParams.counterMetricsMode = counterMetricsMode
+	}
+
 	return qsParams, nil
 }
 
@@ -208,12 +214,14 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		switch dstype {
-		case "COUNTER":
-			column = "DIFFERENCE(MEAN(value))"
-		case "DERIVE":
-			column = "DIFFERENCE(MEAN(value))"
-		default: //case "GAUGE":
+		if dstype == "COUNTER" || dstype == "DERIVE" {
+			switch qsParams.counterMetricsMode {
+			case "difference":
+				column = "DIFFERENCE(MEAN(value))"
+			case "per_second":
+				column = "DERIVATIVE(MEAN(value), 1s)"
+			}
+		} else { //case "GAUGE":
 			column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
 		}
 
