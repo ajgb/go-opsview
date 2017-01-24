@@ -97,6 +97,7 @@ func (this *TimeseriesServer) launchQueriesWorker() {
 	router := httprouter.New()
 	router.GET("/list", this.AccessLog(this.BasicAuth(this.ListHandler, this.config.Server.User, this.config.Server.Password)))
 	router.GET("/query", this.AccessLog(this.BasicAuth(this.QueryHandler, this.config.Server.User, this.config.Server.Password)))
+	router.POST("/query", this.AccessLog(this.BasicAuth(this.QueryHandler, this.config.Server.User, this.config.Server.Password)))
 
 	this.log.Notice("Server started on %s\n", bind)
 	http.ListenAndServe(bind, router)

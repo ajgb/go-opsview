@@ -171,7 +171,11 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 }
 
 func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	qsParams, err := this.parseQueryParams(r.URL.Query())
+	if err := r.ParseForm(); err != nil {
+		this.sendHTTPError(w, http.StatusBadRequest, "Failed to parse query: %s", err)
+		return
+	}
+	qsParams, err := this.parseQueryParams(r.Form)
 	if err != nil {
 		this.sendHTTPError(w, http.StatusBadRequest, "Failed to parse query: %s", err)
 		return
