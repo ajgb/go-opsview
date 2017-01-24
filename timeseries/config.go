@@ -164,6 +164,7 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 	if err != nil {
 		log.Fatalf("Could not parse default configuration file: %s\n", err)
 	}
+	log.Printf("config.defaults: %+v\n", dconf)
 
 	conf := TimeseriesConfig{
 		Server: TimeseriesServerConfig{
