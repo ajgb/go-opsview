@@ -22,6 +22,7 @@ type QueryParams struct {
 	fixedTimeSlot      int64
 	fillOption         string
 	counterMetricsMode string
+	retentionPolicy    string
 	startEpoch         int64
 	endEpoch           int64
 	includeTzOffset    bool
@@ -167,6 +168,13 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		qsParams.counterMetricsMode = counterMetricsMode
 	}
 
+	retentionPolicy := query.Get("rp")
+	if retentionPolicy != "" && !strings.ContainsAny(retentionPolicy, ";\"") {
+		qsParams.retentionPolicy = retentionPolicy
+	} else {
+		qsParams.retentionPolicy = this.config.InfluxDB.RetentionPolicy
+	}
+
 	return qsParams, nil
 }
 
@@ -180,9 +188,9 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		this.sendHTTPError(w, http.StatusBadRequest, "Failed to parse query: %s", err)
 		return
 	}
-	this.log.Debug("qsParams: %v\n", qsParams)
+	this.log.Debug("qsParams: %+v\n", qsParams)
 
-	dbRp := fmt.Sprintf("%s.\"%s\"", this.config.InfluxDB.Database, this.config.InfluxDB.RetentionPolicy)
+	dbRp := fmt.Sprintf("%s.\"%s\"", this.config.InfluxDB.Database, qsParams.retentionPolicy)
 
 	clientConfig := client.HTTPConfig{
 		Addr: this.config.InfluxDB.Server,
