@@ -130,7 +130,7 @@ func (this *TimeseriesServer) Launch(role string) {
 			}(port)
 		}
 	case "queries":
-		this.log = NewLogger(this.config.Server.Updates.LogFacility, this.config.Server.Updates.LogLevel, "influxdb-queries")
+		this.log = NewLogger(this.config.Server.Queries.LogFacility, this.config.Server.Queries.LogLevel, "influxdb-queries")
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
