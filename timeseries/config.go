@@ -2,11 +2,15 @@ package timeseries
 
 import (
 	"errors"
+	"fmt"
+	"github.com/influxdata/influxdb/influxql"
 	"github.com/olebedev/config"
 	"io/ioutil"
 	"log"
 	"path"
+	"sort"
 	"strconv"
+	"time"
 )
 
 type TimeseriesInfluxDBConfig struct {
@@ -25,6 +29,12 @@ type TimeseriesServerUpdatesConfig struct {
 	ExpectedResultsCount int
 }
 
+type RetentionPolicyConfig struct {
+	Name             string
+	Duration         time.Duration
+	GroupingInterval time.Duration
+}
+
 type TimeseriesServerQueriesConfig struct {
 	Host               string
 	Port               int
@@ -35,6 +45,21 @@ type TimeseriesServerQueriesConfig struct {
 	MinTimeSlot        int64
 	FixedTimeSlot      int64
 	CounterMetricsMode string
+	Downsampling       RetentionPoliciesConfig
+}
+
+type RetentionPoliciesConfig []RetentionPolicyConfig
+
+func (s RetentionPoliciesConfig) Len() int {
+	return len(s)
+}
+
+func (s RetentionPoliciesConfig) Less(i, j int) bool {
+	return s[i].Duration < s[j].Duration
+}
+
+func (s RetentionPoliciesConfig) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
 
 type TimeseriesServerConfig struct {
@@ -138,6 +163,42 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 			this.Server.Updates.Ports[i] = int(p["port"].(int))
 		}
 	}
+	if v, err := data.List("timeseriesinfluxdb.server.queries.downsampling"); err == nil {
+		size := len(v)
+		this.Server.Queries.Downsampling = make(RetentionPoliciesConfig, size)
+		for i := 0; i < size; i++ {
+			log.Printf("i: %+v\n", i)
+			name, err := data.String(fmt.Sprintf("timeseriesinfluxdb.server.queries.downsampling.%d.name", i))
+			if err != nil {
+				panic(fmt.Errorf("The downsampling period at %d requires name", i))
+			}
+			d, err := data.String(fmt.Sprintf("timeseriesinfluxdb.server.queries.downsampling.%d.duration", i))
+			if err != nil {
+				panic(fmt.Errorf("The downsampling period '%s' requires duration", name))
+			}
+			duration, err := influxql.ParseDuration(d)
+			if err != nil {
+				panic(fmt.Errorf("The downsampling period '%s' contains invalid duration %s", name, d))
+			}
+			var grouping_interval time.Duration
+			g, err := data.String(fmt.Sprintf("timeseriesinfluxdb.server.queries.downsampling.%d.grouping_interval", i))
+			if err == nil {
+				gc, err := influxql.ParseDuration(g)
+				if err != nil {
+					panic(fmt.Errorf("The downsampling period '%s' contains invalid grouping_duration %s", name, g))
+				}
+				grouping_interval = gc
+			}
+			this.Server.Queries.Downsampling[i] = RetentionPolicyConfig{
+				Name:             name,
+				Duration:         duration,
+				GroupingInterval: grouping_interval,
+			}
+		}
+		if size > 0 {
+			sort.Sort(this.Server.Queries.Downsampling)
+		}
+	}
 	if v, err := data.String("timeseriesinfluxdb.server.queries.logging.loggers.opsview.level"); err == nil {
 		this.Server.Queries.LogLevel = v
 	}
@@ -164,7 +225,6 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 	if err != nil {
 		log.Fatalf("Could not parse default configuration file: %s\n", err)
 	}
-	log.Printf("config.defaults: %+v\n", dconf)
 
 	conf := TimeseriesConfig{
 		Server: TimeseriesServerConfig{
@@ -200,6 +260,7 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 	if err := conf.extractSettings(dconf); err != nil {
 		log.Fatalf("Could not parse default configuration file: %s\n", err)
 	}
+	log.Printf("config.defaults: %+v\n", dconf)
 
 	udata, err := ioutil.ReadFile(path.Join(confdir, UCONFIG_FILE))
 	if err == nil {
@@ -212,6 +273,7 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 			log.Fatalf("Could not parse users configuration file: %s\n", err)
 		}
 	}
+	log.Printf("config.final: %+v\n", conf)
 
 	return &conf
 }

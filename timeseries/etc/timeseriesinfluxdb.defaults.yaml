@@ -24,14 +24,10 @@ timeseriesinfluxdb:
                 counter_metrics_mode: "difference"  # "per_second"
             downsampling:
                 - name: default
-                  duration: Inf
-                  grouping_interval: 0
-                - name: two_weeks
                   duration: 14d
-                  grouping_interval: 5m
                 - name: two_months
                   duration: 62d
-                  grouping_interval: 30m
+                  grouping_interval: 5m
                 - name: two_years
                   duration: 732d
                   grouping_interval: 1d

@@ -12,6 +12,8 @@ bin/influxdb-updates:
 	go build -o bin/influxdb-updates cmd/influxdb-updates.go
 
 deps:
+	go get github.com/gogo/protobuf/proto
+	go get go.uber.org/zap
 	go get github.com/influxdata/influxdb/client/v2
 	go get github.com/julienschmidt/httprouter
 	go get github.com/mattn/go-sqlite3
@@ -21,7 +23,7 @@ deps:
 clean:
 	rm -f bin/influxdb-queries
 	rm -f bin/influxdb-updates
-	rm -d bin
+	rm -fd bin
 
 .PHONY: all binaries deps clean
 
