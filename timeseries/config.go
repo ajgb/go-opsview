@@ -9,7 +9,6 @@ import (
 	"log"
 	"path"
 	"sort"
-	"strconv"
 	"time"
 )
 
@@ -31,9 +30,12 @@ type TimeseriesServerUpdatesConfig struct {
 
 type RetentionPolicyConfig struct {
 	Name             string
+	FillOption       string
 	Duration         time.Duration
 	GroupingInterval time.Duration
 }
+
+type RetentionPoliciesConfig []RetentionPolicyConfig
 
 type TimeseriesServerQueriesConfig struct {
 	Host               string
@@ -47,8 +49,6 @@ type TimeseriesServerQueriesConfig struct {
 	CounterMetricsMode string
 	Downsampling       RetentionPoliciesConfig
 }
-
-type RetentionPoliciesConfig []RetentionPolicyConfig
 
 func (s RetentionPoliciesConfig) Len() int {
 	return len(s)
@@ -119,15 +119,7 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 		this.InfluxDB.RetentionPolicy = v
 	}
 	if v, err := data.String("timeseriesinfluxdb.server.queries.default_parameters.fill_option"); err == nil {
-		if v == "linear" || v == "none" || v == "null" || v == "previous" {
-			this.Server.Queries.FillOption = v
-		} else {
-			if v != "" {
-				if _, err := strconv.ParseInt(v, 10, 64); err == nil {
-					this.Server.Queries.FillOption = v
-				}
-			}
-		}
+		this.Server.Queries.FillOption, _ = CheckFillOption(v, "null")
 	}
 	if v, err := data.Int("timeseriesinfluxdb.server.queries.default_parameters.data_points"); err == nil {
 		this.Server.Queries.DataPoints = int64(v)
@@ -189,10 +181,20 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 				}
 				grouping_interval = gc
 			}
+			fo, err := data.String(fmt.Sprintf("timeseriesinfluxdb.server.queries.downsampling.%d.fill_option", i))
+
 			this.Server.Queries.Downsampling[i] = RetentionPolicyConfig{
 				Name:             name,
 				Duration:         duration,
 				GroupingInterval: grouping_interval,
+			}
+			if err == nil {
+				fill_option, err := CheckFillOption(fo, "")
+				if err != nil || fill_option == "" {
+					panic(fmt.Errorf("The downsampling period '%s' contains invalid fill_option %s", name, fo))
+				} else {
+					this.Server.Queries.Downsampling[i].FillOption = fill_option
+				}
 			}
 		}
 		if size > 0 {
