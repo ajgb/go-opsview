@@ -148,19 +148,11 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		}
 	}
 
-	fillOption := query.Get("fill_option")
-	if fillOption == "linear" || fillOption == "none" || fillOption == "null" || fillOption == "previous" {
+	fillOption, err := CheckFillOption(query.Get("fill_option"), this.config.Server.Queries.FillOption)
+	if err != nil {
 		qsParams.fillOption = fillOption
 	} else {
-		if fillOption == "" {
-			qsParams.fillOption = this.config.Server.Queries.FillOption
-		} else {
-			if _, err := strconv.ParseInt(fillOption, 10, 64); err != nil {
-				return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", fillOption))
-			} else {
-				qsParams.fillOption = fillOption
-			}
-		}
+		return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", fillOption))
 	}
 
 	counterMetricsMode := query.Get("counter_metrics_mode")
@@ -173,6 +165,19 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 		qsParams.retentionPolicy = retentionPolicy
 	} else {
 		qsParams.retentionPolicy = this.config.InfluxDB.RetentionPolicy
+		if this.config.Server.Queries.Downsampling != nil {
+			for _, d := range this.config.Server.Queries.Downsampling {
+				if qsParams.startEpoch >= time.Now().Add(-1*d.Duration).Unix() {
+					qsParams.retentionPolicy = d.Name
+					if d.GroupingInterval > 0 {
+						qsParams.minTimeSlot = int64(d.GroupingInterval.Seconds())
+					}
+					if d.FillOption != "" {
+						qsParams.fillOption = d.FillOption
+					}
+				}
+			}
+		}
 	}
 
 	return qsParams, nil

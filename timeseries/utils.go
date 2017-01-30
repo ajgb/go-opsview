@@ -1,7 +1,9 @@
 package timeseries
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 )
 
 const (
@@ -114,4 +116,23 @@ func CalculateTimeSlotSize(datapoints int64, startEpoch int64, endEpoch int64, m
 		}
 	}
 	return "1s"
+}
+
+func CheckFillOption(value, default_value string) (result string, err error) {
+	err = nil
+	result = default_value
+
+	switch value {
+	case "":
+		return
+	case "linear", "none", "null", "previous":
+		result = value
+	default:
+		if _, err := strconv.ParseFloat(value, 64); err == nil {
+			result = value
+		} else {
+			err = errors.New("Invalid value")
+		}
+	}
+	return
 }
