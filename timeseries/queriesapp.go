@@ -166,6 +166,8 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 	counterMetricsMode := query.Get("counter_metrics_mode")
 	if counterMetricsMode == "difference" || counterMetricsMode == "per_second" {
 		qsParams.counterMetricsMode = counterMetricsMode
+	} else {
+		qsParams.counterMetricsMode = this.config.Server.Queries.CounterMetricsMode
 	}
 
 	retentionPolicy := query.Get("rp")
