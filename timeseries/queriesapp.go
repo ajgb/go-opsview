@@ -149,10 +149,10 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 	}
 
 	fillOption, err := CheckFillOption(query.Get("fill_option"), this.config.Server.Queries.FillOption)
-	if err != nil {
+	if err == nil {
 		qsParams.fillOption = fillOption
 	} else {
-		return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", fillOption))
+		return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", query.Get("fill_option")))
 	}
 
 	counterMetricsMode := query.Get("counter_metrics_mode")
@@ -177,6 +177,7 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 					if d.FillOption != "" {
 						qsParams.fillOption = d.FillOption
 					}
+					break
 				}
 			}
 		}
@@ -305,15 +306,16 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 				for i, _ := range results[1].Series[0].Values {
 					for j := 1; j < 6; j++ {
 						if results[1].Series[0].Values[i][j] != nil {
-							if j == 1 {
+							switch j {
+							case 1:
 								stats.Min = results[1].Series[0].Values[i][j]
-							} else if j == 2 {
+							case 2:
 								stats.Max = results[1].Series[0].Values[i][j]
-							} else if j == 3 {
+							case 3:
 								stats.Avg = results[1].Series[0].Values[i][j]
-							} else if j == 4 {
+							case 4:
 								stats.Stddev = results[1].Series[0].Values[i][j]
-							} else if j == 5 {
+							case 5:
 								stats.P95 = results[1].Series[0].Values[i][j]
 							}
 						}

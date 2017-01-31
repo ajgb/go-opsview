@@ -131,8 +131,9 @@ func CalculateTimeSlotSize(datapoints int64, startEpoch int64, endEpoch int64, m
 }
 
 func CheckFillOption(value, default_value string) (result string, err error) {
-	err = nil
 	result = default_value
+
+	fmt.Printf("CheckFillOption(%s, %s)\n", value, default_value)
 
 	switch value {
 	case "":
@@ -140,11 +141,13 @@ func CheckFillOption(value, default_value string) (result string, err error) {
 	case "linear", "none", "null", "previous":
 		result = value
 	default:
-		if _, err := strconv.ParseFloat(value, 64); err == nil {
+		if _, e := strconv.ParseFloat(value, 64); e == nil {
 			result = value
 		} else {
 			err = errors.New("Invalid value")
 		}
 	}
+
+	fmt.Printf("CheckFillOption = %s, %v\n", result, err)
 	return
 }
