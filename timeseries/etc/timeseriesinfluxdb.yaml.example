@@ -13,6 +13,17 @@ timeseriesinfluxdb:
                 data_points: 500
                 fill_option: "null"
                 min_time_slot: 300
+            downsampling:
+                - name: autogen
+                  duration: 14d
+                - name: two_months
+                  duration: 62d
+                  grouping_interval: 1h
+                  fill_option: "previous"
+                - name: two_years
+                  duration: 732d
+                  grouping_interval: 1d
+                  fill_option: "previous"
             logging:
                 loggers:
                     opsview:

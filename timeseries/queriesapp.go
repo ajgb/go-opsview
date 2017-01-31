@@ -149,10 +149,10 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 	}
 
 	fillOption, err := CheckFillOption(query.Get("fill_option"), this.config.Server.Queries.FillOption)
-	if err != nil {
+	if err == nil {
 		qsParams.fillOption = fillOption
 	} else {
-		return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", fillOption))
+		return nil, errors.New(fmt.Sprintf("Invalid parameter fill_option: %s", query.Get("fill_option")))
 	}
 
 	counterMetricsMode := query.Get("counter_metrics_mode")
@@ -175,6 +175,7 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 					if d.FillOption != "" {
 						qsParams.fillOption = d.FillOption
 					}
+					break
 				}
 			}
 		}
@@ -276,21 +277,47 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
-		if (len(results) == 2 && len(results[0].Series) == 1 && len(results[1].Series) == 1) &&
-			(len(results[1].Series[0].Values) == 1 && len(results[1].Series[0].Values[0]) == 6) {
+		this.log.Debug("results(%+v)\n", results)
 
+		if (len(results) == 2 && len(results[0].Series) == 1 && len(results[1].Series) == 1) &&
+			(len(results[1].Series[0].Values) >= 1 && len(results[1].Series[0].Values[0]) == 6) {
+
+			stats := &QueryResultDataStats{nil, nil, nil, nil, nil}
 			rowsCount := len(results[0].Series[0].Values)
 
-			metrics[hsm.HSM] = &QueryResultData{
-				Data: make([][2]interface{}, rowsCount),
-				Stats: &QueryResultDataStats{
+			if len(results[1].Series[0].Values) == 1 { // InfluxDB < 1.2
+				stats = &QueryResultDataStats{
 					Min:    results[1].Series[0].Values[0][1],
 					Max:    results[1].Series[0].Values[0][2],
 					Avg:    results[1].Series[0].Values[0][3],
 					Stddev: results[1].Series[0].Values[0][4],
 					P95:    results[1].Series[0].Values[0][5],
-				},
-				Uom: uomLabel,
+				}
+			} else { // InfluxDB 1.2.0
+				for i, _ := range results[1].Series[0].Values {
+					for j := 1; j < 6; j++ {
+						if results[1].Series[0].Values[i][j] != nil {
+							switch j {
+							case 1:
+								stats.Min = results[1].Series[0].Values[i][j]
+							case 2:
+								stats.Max = results[1].Series[0].Values[i][j]
+							case 3:
+								stats.Avg = results[1].Series[0].Values[i][j]
+							case 4:
+								stats.Stddev = results[1].Series[0].Values[i][j]
+							case 5:
+								stats.P95 = results[1].Series[0].Values[i][j]
+							}
+						}
+					}
+				}
+			}
+
+			metrics[hsm.HSM] = &QueryResultData{
+				Data:  make([][2]interface{}, rowsCount),
+				Stats: stats,
+				Uom:   uomLabel,
 			}
 			for i, row := range results[0].Series[0].Values {
 				ts, _ := row[0].(json.Number).Int64()
