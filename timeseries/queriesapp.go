@@ -158,6 +158,8 @@ func (this *TimeseriesServer) parseQueryParams(query url.Values) (*QueryParams, 
 	counterMetricsMode := query.Get("counter_metrics_mode")
 	if counterMetricsMode == "difference" || counterMetricsMode == "per_second" {
 		qsParams.counterMetricsMode = counterMetricsMode
+	} else {
+		qsParams.counterMetricsMode = this.config.Server.Queries.CounterMetricsMode
 	}
 
 	retentionPolicy := query.Get("rp")
@@ -244,8 +246,8 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		}
 
 		sql := fmt.Sprintf(
-			"SELECT %s FROM %s.\"%s\" WHERE service = '%s' AND metric = '%s' AND time > %ds AND time < %ds GROUP BY time(%s) fill(%s); "+
-				"SELECT MIN(value) * %[10]f, MAX(value) * %[10]f, MEAN(value) * %[10]f, STDDEV(value) * %[10]f, PERCENTILE(value, 95) * %[10]f FROM %[2]s.\"%[3]s\" WHERE service = '%[4]s' AND metric = '%[5]s' AND time > %[6]ds AND time < %[7]ds",
+			"SELECT %s FROM %s.\"%s\" WHERE service = '%s' AND metric = '%s' AND time >= %ds AND time <= %ds GROUP BY time(%s) fill(%s); "+
+				"SELECT MIN(value) * %[10]f, MAX(value) * %[10]f, MEAN(value) * %[10]f, STDDEV(value) * %[10]f, PERCENTILE(value, 95) * %[10]f FROM %[2]s.\"%[3]s\" WHERE service = '%[4]s' AND metric = '%[5]s' AND time => %[6]ds AND time <= %[7]ds",
 			column,
 			dbRp,
 			hsm.eHost,
