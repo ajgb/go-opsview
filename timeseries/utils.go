@@ -2,6 +2,7 @@ package timeseries
 
 import (
 	"fmt"
+	"math"
 )
 
 const (
@@ -88,30 +89,41 @@ func ConvertUom(uom string) (new_uom string, multiplier float64) {
 }
 
 func CalculateTimeSlotSize(datapoints int64, startEpoch int64, endEpoch int64, minSlotSize float64, fixedSlotSize float64) string {
+	var slotSizeSec float64
 	timeDiff := endEpoch - startEpoch
-	if timeDiff > datapoints {
-		slotSizeSec := float64(timeDiff) / float64(datapoints)
-		if fixedSlotSize > 0 {
-			slotSizeSec = fixedSlotSize
-		}
-		if slotSizeSec < minSlotSize {
-			slotSizeSec = minSlotSize
-		}
-		if slotSizeSec < 1 {
-			slotSizeSec = 1
-		}
-		switch {
-		case slotSizeSec < MINUTE:
-			return fmt.Sprintf("%ds", int(slotSizeSec))
-		case slotSizeSec < HOUR:
-			return fmt.Sprintf("%dm", int(slotSizeSec/MINUTE))
-		case slotSizeSec < DAY:
-			return fmt.Sprintf("%dh", int(slotSizeSec/HOUR))
-		case slotSizeSec < WEEK:
-			return fmt.Sprintf("%dd", int(slotSizeSec/DAY))
-		default:
-			return fmt.Sprintf("%dw", int(slotSizeSec/WEEK))
-		}
+
+	switch {
+	case fixedSlotSize > 0:
+		// use it if specified
+		return fmt.Sprintf("%ds", int(fixedSlotSize))
+	case timeDiff >= datapoints:
+		// slot size would >= 1s
+		slotSizeSec = float64(timeDiff) / float64(datapoints)
+	case timeDiff < int64(minSlotSize):
+		// time window smaller then requested minimal slot size
+		slotSizeSec = minSlotSize
+	default:
+		// somewhere between minslotsize and datapoints
+		slotSizeSec = float64(datapoints)
 	}
-	return "1s"
+
+	if slotSizeSec < minSlotSize {
+		slotSizeSec = minSlotSize
+	}
+	if slotSizeSec < 1 {
+		slotSizeSec = 1
+	}
+
+	switch {
+	case slotSizeSec < MINUTE:
+		return fmt.Sprintf("%ds", int(slotSizeSec))
+	case slotSizeSec < HOUR:
+		return fmt.Sprintf("%dm", int(math.Ceil(slotSizeSec/MINUTE)))
+	case slotSizeSec < DAY:
+		return fmt.Sprintf("%dh", int(math.Ceil(slotSizeSec/HOUR)))
+	case slotSizeSec < WEEK:
+		return fmt.Sprintf("%dd", int(math.Ceil(slotSizeSec/DAY)))
+	default:
+		return fmt.Sprintf("%dw", int(math.Ceil(slotSizeSec/WEEK)))
+	}
 }
