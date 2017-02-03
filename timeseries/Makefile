@@ -18,6 +18,9 @@ deps:
 	go get github.com/olebedev/config
 	go get github.com/ugorji/go/codec
 
+test:
+	go test
+
 clean:
 	rm -f bin/influxdb-queries
 	rm -f bin/influxdb-updates
