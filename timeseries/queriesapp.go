@@ -321,13 +321,30 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 				Stats: stats,
 				Uom:   uomLabel,
 			}
+			var prev_val json.Number
 			for i, row := range results[0].Series[0].Values {
 				ts, _ := row[0].(json.Number).Int64()
 				ts += int64(tz_offset)
 
+				if dstype == "COUNTER" {
+					val, _ := row[1].(json.Number).Float64()
+					if val < 0 {
+						if prev_val != "" {
+							row[1] = prev_val
+						} else {
+							metrics[hsm.HSM].Data[i][0] = ts
+							continue
+						}
+					}
+				}
+
 				metrics[hsm.HSM].Data[i] = [2]interface{}{
 					ts,
 					row[1],
+				}
+
+				if dstype == "COUNTER" {
+					prev_val = row[1].(json.Number)
 				}
 			}
 		}
