@@ -228,28 +228,31 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			return
 		}
 
+		var start_time, end_time string
+		slot_time := CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch, float64(qsParams.minTimeSlot), float64(qsParams.fixedTimeSlot))
+
+		// until influxdb fixes #7185 we calculate COUNTER/DERIVE manually
 		if dstype == "COUNTER" || dstype == "DERIVE" {
-			switch qsParams.counterMetricsMode {
-			case "difference":
-				column = "DIFFERENCE(MEAN(value))"
-			case "per_second":
-				column = "DERIVATIVE(MEAN(value), 1s)"
-			}
+			start_time = fmt.Sprintf("%ds - %s", qsParams.startEpoch, slot_time)
+			//end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
+			end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
 		} else { //case "GAUGE":
-			column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
+			start_time = fmt.Sprintf("%ds", qsParams.startEpoch)
+			end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
 		}
+		column = fmt.Sprintf("MEAN(value) * %f", uomMultiplier)
 
 		sql := fmt.Sprintf(
-			"SELECT %s FROM %s.\"%s\" WHERE service = '%s' AND metric = '%s' AND time >= %ds AND time <= %ds GROUP BY time(%s) fill(%s); "+
-				"SELECT MIN(value) * %[10]f, MAX(value) * %[10]f, MEAN(value) * %[10]f, STDDEV(value) * %[10]f, PERCENTILE(value, 95) * %[10]f FROM %[2]s.\"%[3]s\" WHERE service = '%[4]s' AND metric = '%[5]s' AND time => %[6]ds AND time <= %[7]ds",
+			"SELECT %s FROM %s.\"%s\" WHERE service = '%s' AND metric = '%s' AND time >= %s AND time <= %s GROUP BY time(%s) fill(%s); "+
+				"SELECT MIN(value) * %[10]f, MAX(value) * %[10]f, MEAN(value) * %[10]f, STDDEV(value) * %[10]f, PERCENTILE(value, 95) * %[10]f FROM %[2]s.\"%[3]s\" WHERE service = '%[4]s' AND metric = '%[5]s' AND time >= %[6]s AND time <= %[7]s",
 			column,
 			dbRp,
 			hsm.eHost,
 			hsm.Service,
 			hsm.Metric,
-			qsParams.startEpoch,
-			qsParams.endEpoch,
-			CalculateTimeSlotSize(qsParams.dataPoints, qsParams.startEpoch, qsParams.endEpoch, float64(qsParams.minTimeSlot), float64(qsParams.fixedTimeSlot)),
+			start_time,
+			end_time,
+			slot_time,
 			qsParams.fillOption,
 			uomMultiplier,
 		)
@@ -272,48 +275,112 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 			this.sendHTTPError(w, http.StatusInternalServerError, "Failed to query database: %s", err)
 			return
 		}
+		this.log.Debug("results(%+v)\n", results)
 
 		if (len(results) == 2 && len(results[0].Series) == 1 && len(results[1].Series) == 1) &&
-			(len(results[1].Series[0].Values) == 1 && len(results[1].Series[0].Values[0]) == 6) {
+			(len(results[1].Series[0].Values) >= 1 && len(results[1].Series[0].Values[0]) == 6) {
 
+			stats := &QueryResultDataStats{nil, nil, nil, nil, nil}
 			rowsCount := len(results[0].Series[0].Values)
 
-			metrics[hsm.HSM] = &QueryResultData{
-				Data: make([][2]interface{}, rowsCount),
-				Stats: &QueryResultDataStats{
+			if len(results[1].Series[0].Values) == 1 { // InfluxDB < 1.2
+				stats = &QueryResultDataStats{
 					Min:    results[1].Series[0].Values[0][1],
 					Max:    results[1].Series[0].Values[0][2],
 					Avg:    results[1].Series[0].Values[0][3],
 					Stddev: results[1].Series[0].Values[0][4],
 					P95:    results[1].Series[0].Values[0][5],
-				},
-				Uom: uomLabel,
-			}
-			var prev_val json.Number
-			for i, row := range results[0].Series[0].Values {
-				ts, _ := row[0].(json.Number).Int64()
-				ts += int64(tz_offset)
-
-				if dstype == "COUNTER" {
-					val, _ := row[1].(json.Number).Float64()
-					if val < 0 {
-						if prev_val != "" {
-							row[1] = prev_val
-						} else {
-							metrics[hsm.HSM].Data[i][0] = ts
-							continue
+				}
+			} else { // InfluxDB 1.2.0
+				for i, _ := range results[1].Series[0].Values {
+					for j := 1; j < 6; j++ {
+						if results[1].Series[0].Values[i][j] != nil {
+							if j == 1 {
+								stats.Min = results[1].Series[0].Values[i][j]
+							} else if j == 2 {
+								stats.Max = results[1].Series[0].Values[i][j]
+							} else if j == 3 {
+								stats.Avg = results[1].Series[0].Values[i][j]
+							} else if j == 4 {
+								stats.Stddev = results[1].Series[0].Values[i][j]
+							} else if j == 5 {
+								stats.P95 = results[1].Series[0].Values[i][j]
+							}
 						}
 					}
 				}
+			}
 
-				metrics[hsm.HSM].Data[i] = [2]interface{}{
-					ts,
-					row[1],
+			metrics[hsm.HSM] = &QueryResultData{
+				Data:  make([][2]interface{}, 0, rowsCount),
+				Stats: stats,
+				Uom:   uomLabel,
+			}
+			var prev_val, prev_calc_val json.Number
+			var prev_ts int64
+			var skip_value bool
+
+			is_counter_or_derive := dstype == "COUNTER" || dstype == "DERIVE"
+			is_counter := dstype == "COUNTER"
+			is_counter_mode_ps := qsParams.counterMetricsMode == "per_second"
+
+			for i, row := range results[0].Series[0].Values {
+				ts, _ := row[0].(json.Number).Int64()
+				skip_value = false
+
+				if is_counter_or_derive && ts > qsParams.endEpoch {
+					break
 				}
 
-				if dstype == "COUNTER" {
-					prev_val = row[1].(json.Number)
+				ts += int64(tz_offset)
+
+				if is_counter {
+					//fmt.Printf("[ts: %d] %s\n", ts, row[1])
+					if row[1] == nil {
+						prev_val = json.Number("")
+						prev_calc_val = json.Number("")
+						skip_value = true
+					} else if prev_val != "" {
+						prev, _ := prev_val.Float64()
+						cur, _ := row[1].(json.Number).Float64()
+						diff := cur - prev
+
+						prev_val = row[1].(json.Number)
+
+						//fmt.Printf(" * prev_val: %s, prev: %f, cur: %f, diff: %f\n", prev_val, prev, cur, diff)
+
+						if is_counter && diff < 0 {
+							//prev_val, row[1] = row[1].(json.Number), prev_val
+							//fmt.Printf("    = prev_val: %s, row[1]: %s\n", prev_val, row[1])
+							row[1] = prev_calc_val
+						} else {
+							if is_counter_mode_ps {
+								row[1] = json.Number(fmt.Sprintf("%f", diff/float64(ts-prev_ts)))
+							} else {
+								row[1] = json.Number(fmt.Sprintf("%f", diff))
+							}
+
+							prev_calc_val = row[1].(json.Number)
+						}
+						//fmt.Printf("   => row: %s\n", row[1])
+					} else {
+						prev_val = row[1].(json.Number)
+						skip_value = true
+					}
+					if i == 0 {
+						goto SKIP_DATAPOINT
+					}
 				}
+
+				if skip_value {
+					metrics[hsm.HSM].Data = append(metrics[hsm.HSM].Data, [2]interface{}{ts, nil})
+				} else {
+					metrics[hsm.HSM].Data = append(metrics[hsm.HSM].Data, [2]interface{}{ts, row[1]})
+				}
+
+			SKIP_DATAPOINT:
+				prev_ts = ts
+
 			}
 		}
 	}
