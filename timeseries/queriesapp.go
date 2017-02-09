@@ -276,10 +276,15 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		}
 		this.log.Debug("results(%+v)\n", results)
 
+		stats := &QueryResultDataStats{nil, nil, nil, nil, nil}
+		metrics[hsm.HSM] = &QueryResultData{
+			Data: make([][2]interface{}, 0, rowsCount),
+			Uom:  uomLabel,
+		}
+
 		if (len(results) == 2 && len(results[0].Series) == 1 && len(results[1].Series) == 1) &&
 			(len(results[1].Series[0].Values) >= 1 && len(results[1].Series[0].Values[0]) == 6) {
 
-			stats := &QueryResultDataStats{nil, nil, nil, nil, nil}
 			rowsCount := len(results[0].Series[0].Values)
 
 			if len(results[1].Series[0].Values) == 1 { // InfluxDB < 1.2
@@ -308,12 +313,6 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 						}
 					}
 				}
-			}
-
-			metrics[hsm.HSM] = &QueryResultData{
-				Data:  make([][2]interface{}, 0, rowsCount),
-				Stats: stats,
-				Uom:   uomLabel,
 			}
 			var prev_val, prev_calc_val json.Number
 			var prev_ts int64
@@ -376,6 +375,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 
 			}
 		}
+		metrics[hsm.HSM].Stats = stats
 	}
 
 	json, err := json.Marshal(metrics)
