@@ -240,7 +240,6 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		// until influxdb fixes #7185 we calculate COUNTER/DERIVE manually
 		if dstype == "COUNTER" || dstype == "DERIVE" {
 			start_time = fmt.Sprintf("%ds - %s", qsParams.startEpoch, slot_time)
-			//end_time = fmt.Sprintf("%ds + %s", qsParams.endEpoch, slot_time)
 			end_time = fmt.Sprintf("%ds", qsParams.endEpoch)
 		} else { //case "GAUGE":
 			start_time = fmt.Sprintf("%ds", qsParams.startEpoch)
@@ -283,12 +282,15 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 		}
 		this.log.Debug("results(%+v)\n", results)
 
-		this.log.Debug("results(%+v)\n", results)
+		stats := &QueryResultDataStats{nil, nil, nil, nil, nil}
+		metrics[hsm.HSM] = &QueryResultData{
+			Data: make([][2]interface{}, 0, rowsCount),
+			Uom:  uomLabel,
+		}
 
 		if (len(results) == 2 && len(results[0].Series) == 1 && len(results[1].Series) == 1) &&
 			(len(results[1].Series[0].Values) >= 1 && len(results[1].Series[0].Values[0]) == 6) {
 
-			stats := &QueryResultDataStats{nil, nil, nil, nil, nil}
 			rowsCount := len(results[0].Series[0].Values)
 
 			if len(results[1].Series[0].Values) == 1 { // InfluxDB < 1.2
@@ -319,12 +321,6 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 					}
 				}
 			}
-
-			metrics[hsm.HSM] = &QueryResultData{
-				Data:  make([][2]interface{}, 0, rowsCount),
-				Stats: stats,
-				Uom:   uomLabel,
-			}
 			var prev_val, prev_calc_val json.Number
 			var prev_ts int64
 			var skip_value bool
@@ -344,7 +340,6 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 				ts += int64(tz_offset)
 
 				if is_counter {
-					//fmt.Printf("[ts: %d] %s\n", ts, row[1])
 					if row[1] == nil {
 						prev_val = json.Number("")
 						prev_calc_val = json.Number("")
@@ -356,11 +351,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 
 						prev_val = row[1].(json.Number)
 
-						//fmt.Printf(" * prev_val: %s, prev: %f, cur: %f, diff: %f\n", prev_val, prev, cur, diff)
-
 						if is_counter && diff < 0 {
-							//prev_val, row[1] = row[1].(json.Number), prev_val
-							//fmt.Printf("    = prev_val: %s, row[1]: %s\n", prev_val, row[1])
 							row[1] = prev_calc_val
 						} else {
 							if is_counter_mode_ps {
@@ -371,7 +362,6 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 
 							prev_calc_val = row[1].(json.Number)
 						}
-						//fmt.Printf("   => row: %s\n", row[1])
 					} else {
 						prev_val = row[1].(json.Number)
 						skip_value = true
@@ -392,6 +382,7 @@ func (this *TimeseriesServer) QueryHandler(w http.ResponseWriter, r *http.Reques
 
 			}
 		}
+		metrics[hsm.HSM].Stats = stats
 	}
 
 	json, err := json.Marshal(metrics)
