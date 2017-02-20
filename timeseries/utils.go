@@ -96,7 +96,7 @@ func CalculateTimeSlotSize(datapoints int64, startEpoch int64, endEpoch int64, m
 	case fixedSlotSize > 0:
 		// use it if specified
 		return fmt.Sprintf("%ds", int(fixedSlotSize))
-	case timeDiff >= datapoints:
+	case timeDiff >= datapoints || float64(timeDiff) >= minSlotSize:
 		// slot size would >= 1s
 		slotSizeSec = float64(timeDiff) / float64(datapoints)
 	case timeDiff < int64(minSlotSize):
