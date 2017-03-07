@@ -159,7 +159,6 @@ func (this *TimeseriesConfig) extractSettings(data *config.Config) (fail error) 
 		size := len(v)
 		this.Server.Queries.Downsampling = make(RetentionPoliciesConfig, size)
 		for i := 0; i < size; i++ {
-			log.Printf("i: %+v\n", i)
 			name, err := data.String(fmt.Sprintf("timeseriesinfluxdb.server.queries.downsampling.%d.name", i))
 			if err != nil {
 				panic(fmt.Errorf("The downsampling period at %d requires name", i))
@@ -262,7 +261,6 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 	if err := conf.extractSettings(dconf); err != nil {
 		log.Fatalf("Could not parse default configuration file: %s\n", err)
 	}
-	log.Printf("config.defaults: %+v\n", dconf)
 
 	udata, err := ioutil.ReadFile(path.Join(confdir, UCONFIG_FILE))
 	if err == nil {
@@ -275,7 +273,6 @@ func ReadConfig(confdir string) *TimeseriesConfig {
 			log.Fatalf("Could not parse users configuration file: %s\n", err)
 		}
 	}
-	log.Printf("config.final: %+v\n", conf)
 
 	return &conf
 }
